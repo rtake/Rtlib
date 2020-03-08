@@ -282,7 +282,7 @@ int ConvertIRCLOGtoXYZ(int argc, char* argv[]) {
 			itr_s = v_spn.insert( itr_s, spn );
 		}
 
-		if( strstr( type, "Opt") ) {
+		if( strstr( type, "OPT") ) {
 			if( chk > 0 ) { fwd = m; }
 			else if( chk < 0 ) { bck = m; }
 		}
@@ -291,16 +291,62 @@ int ConvertIRCLOGtoXYZ(int argc, char* argv[]) {
 	}
 	fclose( fp );
 
-	all_mols[0] = fwd;
-	all_mols[ (int)all_mols.size() - 1 ] = bck;
+	if( fwd.size() == all_mols[0].size() ) { all_mols[0] = fwd; }
+	else if( bck.size() == all_mols[0].size() ) { all_mols[ (int)all_mols.size() - 1 ] = bck; }
 
 	fp = fopen( xyz, "w" );
 	natom = (int)all_mols[0].size();
 	for(i = 0;i < (int)all_mols.size();i++) {
-		fprintf( fp, "%d\n/Str. %d/%17.12lf/%17.12lf\n", natom, i, v_ene[i], v_spn[i] );
+		fprintf( fp, "%d\nStr. %d/%17.12lf/%17.12lf\n", natom, i, v_ene[i], v_spn[i] );
 		for(j = 0;j < natom;j++) {
-			fprintf( fp, "%s\t%17.12lf\t%17.12lf\t%17.12lf\n", all_mols[i][j].GetElm().c_str(), all_mols[i][j].GetCrd()[0], all_mols[i][j].GetCrd()[1], all_mols[i][j].GetCrd()[2] );
+			fprintf( fp, "%s\t%17.12lf\t%17.12lf\t%17.12lf\n",
+			all_mols[i][j].GetElm().c_str(), all_mols[i][j].GetCrd()[0], all_mols[i][j].GetCrd()[1], all_mols[i][j].GetCrd()[2] );
 		}
+	}
+	fclose( fp );
+
+	return 0;
+}
+
+
+int ConvertXYZtoDIST(int argc, char* argv[]) {
+	FILE *fp;
+	char *pt, line[256], file[256];
+	int natom, i, j, k;
+	double e;
+
+	vector< vector< Atom > > mols;
+	vector< double > vec_e;
+	Atom a;
+
+	sprintf( file, "%s.dist", argv[1] );
+	fp = fopen( argv[1], "r");
+	while( fgets( line, 256, fp ) ) {
+		sscanf( line, "%d", &natom);
+		fgets( line, 256, fp );
+		pt = strstr( line, "/" );
+		sscanf( pt + 1, "%lf/", &e );
+
+		vector< Atom > m( natom );
+		for(i = 0;i < natom;i++) {
+			fgets( line, 256, fp );
+			a.SetfromString( line );
+			m[i] = a;
+		}
+		mols.push_back( m );
+		vec_e.push_back( e );
+	}
+	fclose( fp );
+
+	fp = fopen( file, "w" );
+	for(i = 0;i < (int)mols.size();i++) {
+		fprintf( fp, "%17.12lf\t", vec_e[i] );
+		for(j = 0;j < natom;j++) {		
+			for(k = j + 1;k < natom;k++) {
+				fprintf( fp, "%17.12lf\t", Dist( mols[i][j], mols[i][k] ) );
+			}
+		}
+		fprintf( fp, "\n" );
 	}
 	fclose( fp );
 
