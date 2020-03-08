@@ -11,7 +11,7 @@
 # include <set>
 # include <sstream>
 # include <utility>
-#include <algorithm>
+# include <algorithm>
 
 using namespace std;
 
@@ -230,6 +230,81 @@ int ConvertLISTLOGtoXYZ(int argc, char* argv[]) {
 	list.close();
 
 	return num;
+}
+
+
+int ConvertIRCLOGtoXYZ(int argc, char* argv[]) {
+	char type[256], line[256], xyz[256];
+	double ene, spn; // energy, spin
+	int i, j, natom = 0, nstep_f = 0, nstep_b = 0, chk = 0; // number of step
+	FILE *fp;
+
+	vector< vector<Atom> > all_mols, irc_mols;
+	vector< double > v_ene, v_spn;
+	vector< vector<Atom> >::iterator itr_m;
+	vector< double >::iterator itr_e, itr_s;
+	vector< Atom > fwd, bck;
+
+	sprintf( xyz, "%s.xyz", argv[1]);
+
+	fp = fopen( argv[1], "r" );
+	while( fgets( line, 256, fp ) ) {
+		sprintf( type, "OFF" );
+		if( strstr( line, "INITIAL STRUCTURE") ) { sprintf( type, "TS" ); }
+		else if( strstr( line, "# STEP") ) { sprintf( type, "IRC" ); }
+		else if( strstr( line, "IRC FOLLOWING (FORWARD)") ) { chk = 1; } // chk == 1 --> forward
+		else if( strstr( line, "IRC FOLLOWING (BACKWARD)") ) { chk = -1; } // chk == -1 --> backward
+		else if( strstr( line, "Optimized") ) { sprintf( type, "OPT" ); }
+
+		if( strstr( type, "OFF" ) ) continue;
+
+		vector< Atom > m;
+		Atom a;
+
+		while( fgets( line, 256, fp ) ) {
+			if( a.SetfromString( line ) != 0 ) break;
+			m.push_back(a);
+		}
+		sscanf( line + 11, "%17lf", &ene );
+		fgets( line, 256, fp );
+		sscanf( line + 11, "%17lf", &spn );
+
+		if( chk <= 0 ) { // TS, BACKWARD
+			all_mols.push_back( m );
+			v_ene.push_back( ene );
+			v_spn.push_back( spn );
+			itr_m = all_mols.begin();
+			itr_e = v_ene.begin();
+			itr_s = v_spn.begin();
+		} else { // FORWARD
+			itr_m = all_mols.insert( itr_m, m );
+			itr_e = v_ene.insert( itr_e, ene );
+			itr_s = v_spn.insert( itr_s, spn );
+		}
+
+		if( strstr( type, "Opt") ) {
+			if( chk > 0 ) { fwd = m; }
+			else if( chk < 0 ) { bck = m; }
+		}
+
+
+	}
+	fclose( fp );
+
+	all_mols[0] = fwd;
+	all_mols[ (int)all_mols.size() - 1 ] = bck;
+
+	fp = fopen( xyz, "w" );
+	natom = (int)all_mols[0].size();
+	for(i = 0;i < (int)all_mols.size();i++) {
+		fprintf( fp, "%d\n/Str. %d/%17.12lf/%17.12lf\n", natom, i, v_ene[i], v_spn[i] );
+		for(j = 0;j < natom;j++) {
+			fprintf( fp, "%s\t%17.12lf\t%17.12lf\t%17.12lf\n", all_mols[i][j].GetElm().c_str(), all_mols[i][j].GetCrd()[0], all_mols[i][j].GetCrd()[1], all_mols[i][j].GetCrd()[2] );
+		}
+	}
+	fclose( fp );
+
+	return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
