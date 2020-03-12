@@ -19,9 +19,10 @@ using namespace std;
 
 class Atom {
 	public:
-		Atom() : crd(3,0) {}; // constructor
+		Atom() : crd(3,0), elm("") {}; // constructor
 		Atom(const Atom &a) : elm(a.elm), crd(a.crd) {} // copy constructor
 		vector<double> GetCrd() { return crd; }
+		double GetCrd( int i ) { return crd[i]; }
 		string GetElm() { return elm; }
 		double radii();
 		int mass();
@@ -85,7 +86,7 @@ void inPESdata(ifstream& ifs, vector< vector<double> >& mat_f, vector<double>& v
 
 		for(int j = 0;getline(ssline,line,'\t');j++) { // cout << "line\t" << line << endl;
 			double v;
-			int chk = sscanf(line.c_str(),"%lf",&v);
+			int chk = sscanf(line.c_str(),"%17lf",&v);
 			if(chk <= 0) printf("sscanf in inPESdata() failed, i : %d, j : %d\n",i,j);
 
 			if(j == 0) vec_f[i] = v; // vec_f.push_back(v);			
@@ -120,7 +121,8 @@ void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> ve
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 int BondJudge(Atom a0, Atom a1) {
-	if( Dist(a0, a1) < ( a0.radii() + a1.radii() ) * 1.25 ) return 1;
+	double threshold = 1.5;
+	if( Dist(a0, a1) < ( a0.radii() + a1.radii() ) * threshold ) return 1;
 	else return -1;
 }
 
@@ -135,7 +137,11 @@ vector<int> MakeFragment(vector<Atom> mol) {
 
 	for(i = 0;i < natom;i++) {
 		for(j = i + 1;j < natom;j++) {
-			if( BondJudge(mol[i], mol[j]) == 1 ) { mat[i][j] = 1; mat[j][i] = 1; }
+			if( BondJudge(mol[i], mol[j]) == 1 ) {
+				mat[i][j] = 1;
+				mat[j][i] = 1;
+				// fprintf( stdout, "%d and %d is connect\n", i ,j );
+			}
 		}
 	}
 	
@@ -145,8 +151,12 @@ vector<int> MakeFragment(vector<Atom> mol) {
 		for(j = i + 1;j < natom;j++) {
 			if( mat[i][j] == 1 ) {
 				for(k = 0;k < natom;k++) {
-					if( root[k] == root[j] ) root[k] = root[i];
+					if( k == j ) continue;
+					if( root[k] == root[j] ) {
+						root[k] = root[i];
+					}
 				}
+				root[ root[j] ] = root[i];
 				root[j] = root[i];
 			}
 		}
@@ -158,7 +168,9 @@ vector<int> MakeFragment(vector<Atom> mol) {
 	for(i = 0;i < natom;i++) { fvec[ root[i] ] += mol[i].mass(); }
 	for(i = 0;i < natom;i++) { if( fvec[i] > 0 ) frg.push_back( fvec[i] ); }
 	sort( frg.begin(), frg.end(), greater<int>() );
-	// sort( fvec.begin(), fvec.end() );
+
+	for(i = 0;i < natom;i++) { fprintf( stdout, "root[%d] : %d\t", i, root[i] ); }
+	fprintf( stdout, "\n" );
 
 	return frg;
 }
@@ -325,7 +337,7 @@ int ConvertXYZtoDIST(int argc, char* argv[]) {
 		sscanf( line, "%d", &natom);
 		fgets( line, 256, fp );
 		pt = strstr( line, "/" );
-		sscanf( pt + 1, "%lf/", &e );
+		sscanf( pt + 1, "%lf", &e );
 
 		vector< Atom > m( natom );
 		for(i = 0;i < natom;i++) {
@@ -351,6 +363,87 @@ int ConvertXYZtoDIST(int argc, char* argv[]) {
 	fclose( fp );
 
 	return 0;
+}
+
+
+int ConvertLUPOUTttoXYZ(int argc, char* argv[]) {
+	FILE *fpxyz;
+	double ene, spn;
+	int i;
+
+	ifstream log;
+	string infname, outfname, line, comment;
+	vector< string > svec;
+	
+	infname = argv[1];
+	outfname = infname + ".xyz";
+	fpxyz = fopen( outfname.c_str(), "w" );
+	log.open( argv[1] );
+	while( getline( log, line ) ) {
+		if( !strstr( line.c_str(), "# NODE") ) { continue; }
+
+		svec.clear();
+		comment = line;
+		while( getline( log, line ) ) {
+			if( strstr( line.c_str(), "Threshold" ) ) { break; }
+			svec.push_back( line );
+		}
+
+		while( getline( log, line ) ) {
+			if( strstr( line.c_str(), "ENERGY" ) ) {
+				sscanf( line.c_str() + 22, "%17lf", &ene);
+				// fprintf( stdout, "%s\n", line.c_str() );
+			} else if( strstr( line.c_str(), "Spin(**2)" ) ) {
+				sscanf( line.c_str() + 22, "%17lf", &spn);
+				break;
+			}
+		}
+
+		fprintf( fpxyz, "%d\n", (int)svec.size() );
+		fprintf( fpxyz, "%s/%17.12lf/%17.12lf\n", comment.c_str(), ene, spn );
+		for(i = 0;i < (int)svec.size();i++) { fprintf(fpxyz, "%s\n", svec[i].c_str() ); }
+
+	}
+	log.close();
+	fclose( fpxyz );
+
+	return 0;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+int Combination(int n, int r) {
+	if(n == r) return 1;
+	else if(r == 0) return 1;
+	else if(r == 1) return n;
+	else return Combination(n - 1, r - 1) + Combination(n - 1, r);
+
+}
+
+
+void MakeCombination( int size, int order, int **mat ) {
+	int i, j, k, index, **mat0, size0;
+
+	index = 0;
+	if( size == 1 ) {
+		for(i = 0;i < order + 1;i++) { mat[i][index] = i; }
+	} else {
+		for(i = 0;i < order + 1;i++) {
+			size0 = Combination( size - 1 + i, i ); // nrow
+			mat0 = ( int** )malloc( sizeof( int* ) * ( size0 ) ); // row
+			for(j = 0;j < size0;j++) { mat0[j] = ( int* )malloc( sizeof( int* ) * ( size - 1 ) ); } // line
+			MakeCombination( size - 1, i, mat0 );
+
+			for(j = 0;j < size0;j++, index++) {
+				mat[index][0] = order - i;
+				for(k = 0;k < size - 1;k++) { mat[index][k + 1] = mat0[j][k]; }
+			}
+			
+			for(j = 0;j < size0;j++) { free( mat0[j] ); }
+			free( mat0 );
+		}
+	}
+
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
