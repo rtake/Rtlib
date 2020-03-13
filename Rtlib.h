@@ -23,7 +23,9 @@ class Atom {
 		Atom(const Atom &a) : elm(a.elm), crd(a.crd) {} // copy constructor
 		vector<double> GetCrd() { return crd; }
 		double GetCrd( int i ) { return crd[i]; }
+		void SetCrd( int i, double d ) { crd[i] = d; }
 		string GetElm() { return elm; }
+		void SetElm( string elm ) { this->elm = elm; }
 		double radii();
 		int mass();
 
