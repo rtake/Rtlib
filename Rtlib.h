@@ -338,7 +338,7 @@ int ConvertXYZtoDIST(int argc, char* argv[]) {
 	while( fgets( line, 256, fp ) ) {
 		sscanf( line, "%d", &natom);
 		fgets( line, 256, fp );
-		pt = strstr( line, "/" );
+		pt = strstr( line, "/" ); 
 		sscanf( pt + 1, "%lf", &e );
 
 		vector< Atom > m( natom );
