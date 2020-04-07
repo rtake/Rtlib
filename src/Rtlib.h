@@ -17,6 +17,10 @@ using namespace std;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
+double ang_to_bohr( double d_ang ) { return d_ang / 0.5291772; }
+
+double bohr_to_ang( double d_bohr ) { return d_bohr * 0.5291772; }
+
 class Atom {
 	public:
 		Atom() : crd(3,0), elm("X") {}; // constructor
@@ -43,7 +47,7 @@ class Atom {
 			else return -1;
 		}
 
-		void Print() { printf("%s%17lf%17lf%17lf\n",elm.c_str(),crd[0],crd[1],crd[2]); }
+		void Print() { printf("%s%17.12lf%17.12lf%17.12lf\n",elm.c_str(),crd[0],crd[1],crd[2]); }
 
 	private:
 		string elm; // element
@@ -78,11 +82,6 @@ double Dist(Atom a0, Atom a1) {
 	for(int i = 0;i < 3;i++) sum += pow( (c0[i] - c1[i]), 2);
 	return sqrt(sum);
 }
-
-
-double ang_to_bohr( double d_ang ) { return d_ang / 0.5291772; }
-
-double bohr_to_ang( double d_bohr ) { return d_bohr * 0.5291772; }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -191,6 +190,13 @@ vector<int> MakeFragment(vector<Atom> mol) {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
+
+int ConvertMINtoXYZ( int argc, char* argv[] ) {
+
+
+	return 0;
+}
+
 
 int ConvertLISTLOGtoXYZ(int argc, char* argv[]) {
 	int i, j, num, nmode;
@@ -438,7 +444,7 @@ void MakeCombination( int size, int order, int **mat ) {
 	int i, j, k, index, **mat0, size0;
 
 	index = 0;
-	if( size == 1 ) {
+	if( size <= 1 ) {
 		for(i = 0;i < order + 1;i++) { mat[i][index] = i; }
 	} else {
 		for(i = 0;i < order + 1;i++) {
