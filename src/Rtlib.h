@@ -191,13 +191,6 @@ vector<int> MakeFragment(vector<Atom> mol) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-int ConvertMINtoXYZ( int argc, char* argv[] ) {
-
-
-	return 0;
-}
-
-
 int ConvertLISTLOGtoXYZ(int argc, char* argv[]) {
 	int i, j, num, nmode;
 	FILE *fp;
@@ -411,9 +404,55 @@ int ConvertLUPOUTttoXYZ(int argc, char* argv[]) {
 		while( getline( log, line ) ) {
 			if( strstr( line.c_str(), "ENERGY" ) ) {
 				sscanf( line.c_str() + 22, "%17lf", &ene);
-				// fprintf( stdout, "%s\n", line.c_str() );
 			} else if( strstr( line.c_str(), "Spin(**2)" ) ) {
 				sscanf( line.c_str() + 22, "%17lf", &spn);
+				break;
+			}
+		}
+
+		fprintf( fpxyz, "%d\n", (int)svec.size() );
+		fprintf( fpxyz, "%s/%17.12lf/%17.12lf\n", comment.c_str(), ene, spn );
+		for(i = 0;i < (int)svec.size();i++) { fprintf(fpxyz, "%s\n", svec[i].c_str() ); }
+
+	}
+	log.close();
+	fclose( fpxyz );
+
+	return 0;
+}
+
+
+int ConvertMINtoXYZ(int argc, char* argv[]) {
+	FILE *fpxyz;
+	double ene, spn;
+	int i;
+	const char *pt;
+
+	ifstream log;
+	string infname, outfname, line, comment;
+	vector< string > svec;
+
+	infname = argv[1];
+	outfname = infname + ".xyz";
+	fpxyz = fopen( outfname.c_str(), "w" );
+	log.open( argv[1] );
+	while( getline( log, line ) ) {
+		if( !strstr( line.c_str(), "# ITR") ) { continue; }
+
+		svec.clear();
+		comment = line;
+		while( getline( log, line ) ) {
+			if( strstr( line.c_str(), "Threshold" ) ) { break; }
+			svec.push_back( line );
+		}
+
+		while( getline( log, line ) ) {
+			if( strstr( line.c_str(), "ENERGY" ) ) {
+				pt = strstr( line.c_str(), "ENERGY" );
+				sscanf( pt + 10, "%17lf", &ene);
+			} else if( strstr( line.c_str(), "Spin(**2)" ) ) {
+				pt = strstr( line.c_str(), "Spin(**2)" );
+				sscanf( pt + 10, "%17lf", &spn);
 				break;
 			}
 		}
