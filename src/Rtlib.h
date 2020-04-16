@@ -18,7 +18,6 @@ using namespace std;
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 double ang_to_bohr( double d_ang ) { return d_ang / 0.5291772; }
-
 double bohr_to_ang( double d_bohr ) { return d_bohr * 0.5291772; }
 
 class Atom {
@@ -32,6 +31,8 @@ class Atom {
 		void SetElm( string elm ) { this->elm = elm; }
 		double radii();
 		int mass();
+		void angtobohr() { for(int i = 0;i < 3;i++) { crd[i] /= 0.5291772; } }
+		void bohrtoang() { for(int i = 0;i < 3;i++) { crd[i] *= 0.5291772; } }
 
 		Atom& operator=( Atom a ) {
 			elm = a.elm;
@@ -81,6 +82,119 @@ double Dist(Atom a0, Atom a1) {
 
 	for(int i = 0;i < 3;i++) sum += pow( (c0[i] - c1[i]), 2);
 	return sqrt(sum);
+}
+
+
+double Angle( Atom a0, Atom a1, Atom a2 ) {
+	int i;
+	double innerproduct = 0;
+	for(i = 0;i < 3;i++) { innerproduct += ( a0.GetCrd( i ) - a1.GetCrd( i ) ) * ( a2.GetCrd( i ) - a1.GetCrd( i ) ); }
+	return acos( innerproduct / ( Dist( a0, a1 ) * Dist( a2, a1 ) ) ) * ( 180 / acos( -1 ) );
+}
+
+
+double Dihedral( Atom a0, Atom a1, Atom a2, Atom a3 ) { return -99999; }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+void ConvertMOLtoDIST( int natom, Atom* m, double* vec ) {
+	int index = 0, i;
+	for(i = 0;i < natom;i++) { for(int j = i + 1;j < natom;j++, index++) { vec[index] = Dist( m[i], m[j] ); } }
+}
+
+
+int GetPointfromXYZFILE( FILE* fp, Atom** mols_ref, double* enes_ref ) {
+	int natom, nref = 0, i;
+	char *pt, line[256];
+
+	while( fgets( line, 256, fp ) ) {
+		sscanf( line, "%d", &natom );
+		fgets( line, 256, fp );
+		pt = strstr( line, "/" );
+		sscanf( pt + 1, "%17lf", &enes_ref[nref] );
+
+		for(i = 0;i < natom && fgets( line, 256, fp );i++) { mols_ref[nref][i].SetfromString( line ); }
+		nref++;
+	}
+
+	return nref;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct InternalCoordinate {
+	int natom;
+	char **atype; // atom type
+	double *r, *a, *d; // radius, angle, dihedral
+} InternalCoordinate;
+
+
+void InternalCoordinate_Malloc( InternalCoordinate *icrd, int num ) {
+	icrd = ( InternalCoordinate* )malloc( sizeof( InternalCoordinate ) );
+	icrd->atype = ( char** )malloc( sizeof( char* ) * num );
+	icrd->r = ( double* )malloc( sizeof( double ) * num );
+	icrd->a = ( double* )malloc( sizeof( double ) * num );
+	icrd->d = ( double* )malloc( sizeof( double ) * num );
+	for(int i = 0;i < num;i++) { icrd->atype[i] = ( char*)malloc( sizeof( char ) * 5 ); }
+	icrd->natom = num;
+}
+
+
+void InternalCoordinate_Free( InternalCoordinate *icrd ) {
+	if( icrd == NULL ) return;
+	for(int i = 0;i < icrd->natom;i++) { free( icrd->atype[i] ); }
+	free( icrd->atype  );
+	free( icrd->r  );
+	free( icrd->a  );
+	free( icrd->d  );
+	free( icrd );
+}
+
+
+void CartesianToInternal( Atom *mol, InternalCoordinate *icrd ) {
+	if( icrd == NULL ) return;
+	for(int i = 0;i < icrd->natom;i++) {
+		sprintf( icrd->atype[i], "%s", mol[i].GetElm().c_str() );
+		icrd->r[i] = icrd->a[i] = icrd->d[i] = -99999;
+		if( i > 0 ) icrd->r[i] = Dist( mol[i], mol[0] );
+		if( i > 1 ) icrd->a[i] = Angle( mol[i], mol[0], mol[1] );
+		if( i > 2 ) icrd->d[i] = Dihedral( mol[i], mol[0], mol[1], mol[2] );
+	}
+}
+
+
+void CartesianToInternal( int natom, Atom *mol, double *retv ) {
+	const int dfree = 3 * natom - 6;
+	if( retv == NULL ) return;
+	for(int i = 0;i < dfree;i++) {
+		if( i == 0 ) { retv[i] = Dist( mol[1], mol[0] ); }
+		else if( i == 1 ) { retv[i] = Dist( mol[2], mol[0] ); }
+		else if( i == 2 ) { retv[i] = Angle( mol[2], mol[0], mol[1] ); }
+		else if( i %3 == 0 ) { retv[i] = Dist( mol[i/3 + 2], mol[0] ); }
+		else if( i %3 == 1 ) { retv[i] = Angle( mol[i/3 + 2], mol[0], mol[1] ); }
+		else if( i %3 == 2 ) { retv[i] = Dihedral( mol[i/3 + 2], mol[0], mol[1], mol[2] ); }
+	}
+}
+
+
+void InternalToCartesian( int natom, Atom *mol, double *argv ) {
+	for(int i = 0;i < natom;i++) {
+		for(int j = 0;j < 3;j++) { mol[i].SetCrd( j, 0.0 ); }
+
+		if( i == 1 ) { mol[i].SetCrd( 0, argv[0] ); }
+		else if( i == 2 ) {
+			mol[i].SetCrd( 0, argv[1] * cos( argv[2] * acos( -1 ) / 180 ) );
+			mol[i].SetCrd( 1, argv[1] * sin( argv[2] * acos( -1 ) / 180 ) );
+		} else if( i > 2 ) {
+			mol[i].SetCrd( 0, argv[3 * i - 6] * sin( argv[3 * i - 4] * acos( -1 ) / 180 ) * cos( argv[3 * i - 5] * acos( -1 ) / 180 ) );
+			mol[i].SetCrd( 1, argv[3 * i - 6] * sin( argv[3 * i - 4] * acos( -1 ) / 180 ) * sin( argv[3 * i - 5] * acos( -1 ) / 180 ) );
+			mol[i].SetCrd( 2, argv[3 * i - 6] * sin( argv[3 * i - 4] * acos( -1 ) / 180 ) );
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -442,7 +556,7 @@ int ConvertMINtoXYZ(int argc, char* argv[]) {
 		svec.clear();
 		comment = line;
 		while( getline( log, line ) ) {
-			if( strstr( line.c_str(), "Threshold" ) ) { break; }
+			if( strstr( line.c_str(), "Item" ) ) { break; }
 			svec.push_back( line );
 		}
 
@@ -450,15 +564,12 @@ int ConvertMINtoXYZ(int argc, char* argv[]) {
 			if( strstr( line.c_str(), "ENERGY" ) ) {
 				pt = strstr( line.c_str(), "ENERGY" );
 				sscanf( pt + 10, "%17lf", &ene);
-			} else if( strstr( line.c_str(), "Spin(**2)" ) ) {
-				pt = strstr( line.c_str(), "Spin(**2)" );
-				sscanf( pt + 10, "%17lf", &spn);
 				break;
 			}
 		}
 
 		fprintf( fpxyz, "%d\n", (int)svec.size() );
-		fprintf( fpxyz, "%s/%17.12lf/%17.12lf\n", comment.c_str(), ene, spn );
+		fprintf( fpxyz, "%s/%17.12lf\n", comment.c_str(), ene );
 		for(i = 0;i < (int)svec.size();i++) { fprintf(fpxyz, "%s\n", svec[i].c_str() ); }
 
 	}
