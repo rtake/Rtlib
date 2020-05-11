@@ -254,7 +254,7 @@ int BondJudge(Atom a0, Atom a1) {
 
 
 vector<int> MakeFragment(vector<Atom> mol) {
-	int i ,j, k, chk = 0;
+	int i ,j, k;
 	const int natom = (int)mol.size();
 	vector<int> frg, fvec(natom, 0), f(natom), root(natom); // root
 	vector< vector<int> > mat(natom, vector<int>(natom, -1) );
@@ -306,7 +306,7 @@ vector<int> MakeFragment(vector<Atom> mol) {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 int ConvertLISTLOGtoXYZ(int argc, char* argv[]) {
-	int i, j, num, nmode;
+	int i, j, num = 0, nmode;
 	FILE *fp;
 	double ene, spin, zpve, evalue;
 	
@@ -363,6 +363,7 @@ int ConvertLISTLOGtoXYZ(int argc, char* argv[]) {
 
 		// Print end
 
+		num++;
 	} while( getline( list, line ) );
 
 	list.close();
@@ -374,7 +375,7 @@ int ConvertLISTLOGtoXYZ(int argc, char* argv[]) {
 int ConvertIRCLOGtoXYZ(int argc, char* argv[]) {
 	char type[256], line[256], xyz[256];
 	double ene, spn; // energy, spin
-	int i, j, natom = 0, nstep_f = 0, nstep_b = 0, chk = 0; // number of step
+	int i, j, natom = 0, chk = 0; // number of step
 	FILE *fp;
 
 	vector< vector<Atom> > all_mols, irc_mols;
@@ -538,7 +539,7 @@ int ConvertLUPOUTttoXYZ(int argc, char* argv[]) {
 
 int ConvertMINtoXYZ(int argc, char* argv[]) {
 	FILE *fpxyz;
-	double ene, spn;
+	double ene;
 	int i;
 	const char *pt;
 
