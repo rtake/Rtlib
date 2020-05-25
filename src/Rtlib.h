@@ -93,7 +93,29 @@ double Angle( Atom a0, Atom a1, Atom a2 ) {
 }
 
 
-double Dihedral( Atom a0, Atom a1, Atom a2, Atom a3 ) { return -99999; }
+double Dihedral( Atom a0, Atom a1, Atom a2, Atom a3 ) {
+  double pi = acos(-1), angle, innerproduct;
+  vector<double> a(3),b(3),v0(3),v1(3),v2(3);
+
+  for(int i=0;i<3;i++) {
+    v0[i] = a2.GetCrd(i) - a1.GetCrd(i);
+    v1[i] = a3.GetCrd(i) - a1.GetCrd(i);
+    v2[i] = a0.GetCrd(i) - a1.GetCrd(i);
+  }
+
+  a[0] = v0[1]*v1[2] - v0[2]*v1[1]; // a = v0 cross v1
+  a[1] = v0[2]*v1[0] - v0[0]*v1[2]; // a = v0 cross v1
+  a[2] = v0[0]*v1[1] - v0[1]*v1[0]; // a = v0 cross v1
+
+  b[0] = v2[1]*v0[2] - v2[2]*v0[1]; // a = v0 cross v1
+  b[1] = v2[2]*v0[0] - v2[0]*v0[2]; // a = v0 cross v1
+  b[2] = v2[0]*v0[1] - v2[1]*v0[0]; // a = v0 cross v1
+
+  innerproduct = abs(a[0]*b[0] + a[1]*b[1] + a[2]*b[2]);
+  angle = acos( innerproduct/(sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2])*sqrt(b[0]*b[0]+b[1]*b[1]+b[2]*b[2])) );
+
+  return angle*(180/pi);
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -154,7 +176,7 @@ void InternalCoordinate_Free( InternalCoordinate *icrd ) {
 	free( icrd );
 }
 
-
+/*
 void CartesianToInternal( Atom *mol, InternalCoordinate *icrd ) {
 	if( icrd == NULL ) return;
 	for(int i = 0;i < icrd->natom;i++) {
@@ -165,7 +187,7 @@ void CartesianToInternal( Atom *mol, InternalCoordinate *icrd ) {
 		if( i > 2 ) icrd->d[i] = Dihedral( mol[i], mol[0], mol[1], mol[2] );
 	}
 }
-
+*/
 
 void CartesianToInternal( int natom, Atom *mol, double *retv ) {
 	const int dfree = 3 * natom - 6;
@@ -190,9 +212,9 @@ void InternalToCartesian( int natom, Atom *mol, double *argv ) {
 			mol[i].SetCrd( 0, argv[1] * cos( argv[2] * acos( -1 ) / 180 ) );
 			mol[i].SetCrd( 1, argv[1] * sin( argv[2] * acos( -1 ) / 180 ) );
 		} else if( i > 2 ) {
-			mol[i].SetCrd( 0, argv[3 * i - 6] * sin( argv[3 * i - 4] * acos( -1 ) / 180 ) * cos( argv[3 * i - 5] * acos( -1 ) / 180 ) );
-			mol[i].SetCrd( 1, argv[3 * i - 6] * sin( argv[3 * i - 4] * acos( -1 ) / 180 ) * sin( argv[3 * i - 5] * acos( -1 ) / 180 ) );
-			mol[i].SetCrd( 2, argv[3 * i - 6] * sin( argv[3 * i - 4] * acos( -1 ) / 180 ) );
+			mol[i].SetCrd( 0, argv[3 * i - 6] * cos( argv[3 * i - 5] * acos( -1 ) / 180 ) );
+			mol[i].SetCrd( 1, argv[3 * i - 6] * sin( argv[3 * i - 5] * acos( -1 ) / 180 ) * cos( argv[3 * i - 4] * acos( -1 ) / 180 ) );
+			mol[i].SetCrd( 2, argv[3 * i - 6] * sin( argv[3 * i - 5] * acos( -1 ) / 180 ) * sin( argv[3 * i - 4] * acos( -1 ) / 180 ) );
 		}
 	}
 }
