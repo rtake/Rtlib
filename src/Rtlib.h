@@ -13,7 +13,12 @@
 # include <utility>
 # include <algorithm>
 
+# include "eigen-3.3.7/Eigen/Dense"
+# include "eigen-3.3.7/Eigen/Core"
+# include "eigen-3.3.7/Eigen/LU"
+
 using namespace std;
+using namespace Eigen;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -94,27 +99,15 @@ double Angle( Atom a0, Atom a1, Atom a2 ) {
 
 
 double Dihedral( Atom a0, Atom a1, Atom a2, Atom a3 ) {
-  double pi = acos(-1), angle, innerproduct;
-  vector<double> a(3),b(3),v0(3),v1(3),v2(3);
+  Vector3d v0,v1,v2;
 
-  for(int i=0;i<3;i++) {
-    v0[i] = a2.GetCrd(i) - a1.GetCrd(i);
-    v1[i] = a3.GetCrd(i) - a1.GetCrd(i);
-    v2[i] = a0.GetCrd(i) - a1.GetCrd(i);
-  }
+  for(int i=0;i<3;i++) { v0(i) = a2.GetCrd(i) - a1.GetCrd(i); }
+  for(int i=0;i<3;i++) { v1(i) = a3.GetCrd(i) - a1.GetCrd(i); }
+  for(int i=0;i<3;i++) { v2(i) = a0.GetCrd(i) - a1.GetCrd(i); }
 
-  a[0] = v0[1]*v1[2] - v0[2]*v1[1]; // a = v0 cross v1
-  a[1] = v0[2]*v1[0] - v0[0]*v1[2]; // a = v0 cross v1
-  a[2] = v0[0]*v1[1] - v0[1]*v1[0]; // a = v0 cross v1
-
-  b[0] = v2[1]*v0[2] - v2[2]*v0[1]; // a = v0 cross v1
-  b[1] = v2[2]*v0[0] - v2[0]*v0[2]; // a = v0 cross v1
-  b[2] = v2[0]*v0[1] - v2[1]*v0[0]; // a = v0 cross v1
-
-  innerproduct = abs(a[0]*b[0] + a[1]*b[1] + a[2]*b[2]);
-  angle = acos( innerproduct/(sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2])*sqrt(b[0]*b[0]+b[1]*b[1]+b[2]*b[2])) );
-
-  return angle*(180/pi);
+  double cos_theta = (v0.cross(v1)).dot(v0.cross(v2))/(v0.cross(v1).norm()*(v0.cross(v2).norm()));
+  double sin_theta = v0.dot((v0.cross(v1)).cross(v0.cross(v2)))/(v0.norm()*v0.cross(v1).norm()*(v0.cross(v2).norm()));
+  return atan2(sin_theta,cos_theta)*(180/acos(-1));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -377,10 +370,11 @@ int ConvertLISTLOGtoXYZ(int argc, char* argv[]) {
 		// Print start
 
 		fprintf(fp, "%d\n", (int)svec.size() );
-		fprintf(fp, "%s/Energy=%17.12lf/Spin(**2)=%17.12lf/ZPVE=%17.12lf/", comment.c_str(), ene, spin, zpve);
-		fprintf(fp, "nmode=%d/", nmode);
-		for(i = 0;i < nmode;i++) { fprintf(fp, "%10.9lf/", evvec[i] ); }
-		fprintf(fp, "CONNECTION:%d-%d/\n", connection.first, connection.second );
+		fprintf(fp, "%s,Energy=%17.12lf,Spin(**2)=%17.12lf,ZPVE=%17.12lf,", comment.c_str(), ene, spin, zpve);
+//		fprintf(fp, "nmode=%d/", nmode);
+//		for(i = 0;i < nmode;i++) { fprintf(fp, "%10.9lf/", evvec[i] ); }
+//		fprintf(fp, "CONNECTION:%d-%d/\n", connection.first, connection.second );
+		fprintf(fp,"\n");
 		for(i = 0;i < (int)svec.size();i++) { fprintf(fp, "%s\n", svec[i].c_str() ); }
 
 		// Print end
