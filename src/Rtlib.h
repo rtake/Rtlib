@@ -94,7 +94,7 @@ double Angle( Atom a0, Atom a1, Atom a2 ) {
 	int i;
 	double innerproduct = 0;
 	for(i = 0;i < 3;i++) { innerproduct += ( a0.GetCrd( i ) - a1.GetCrd( i ) ) * ( a2.GetCrd( i ) - a1.GetCrd( i ) ); }
-	return acos( innerproduct / ( Dist( a0, a1 ) * Dist( a2, a1 ) ) ) * ( 180 / acos( -1 ) );
+	return acos( innerproduct / ( Dist( a0, a1 ) * Dist( a2, a1 ) ) );
 }
 
 
@@ -107,7 +107,7 @@ double Dihedral( Atom a0, Atom a1, Atom a2, Atom a3 ) {
 
   double cos_theta = (v0.cross(v1)).dot(v0.cross(v2))/(v0.cross(v1).norm()*(v0.cross(v2).norm()));
   double sin_theta = v0.dot((v0.cross(v1)).cross(v0.cross(v2)))/(v0.norm()*v0.cross(v1).norm()*(v0.cross(v2).norm()));
-  return atan2(sin_theta,cos_theta)*(180/acos(-1));
+  return atan2(sin_theta,cos_theta);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,7 +127,7 @@ int GetPointfromXYZFILE( FILE* fp, Atom** mols_ref, double* enes_ref ) {
 	while( fgets( line, 256, fp ) ) {
 		sscanf( line, "%d", &natom );
 		fgets( line, 256, fp );
-		pt = strstr( line, "/" );
+		pt = strstr( line, "," );
 		sscanf( pt + 1, "%17lf", &enes_ref[nref] );
 
 		for(i = 0;i < natom && fgets( line, 256, fp );i++) { mols_ref[nref][i].SetfromString( line ); }
@@ -202,12 +202,12 @@ void InternalToCartesian( int natom, Atom *mol, double *argv ) {
 
 		if( i == 1 ) { mol[i].SetCrd( 0, argv[0] ); }
 		else if( i == 2 ) {
-			mol[i].SetCrd( 0, argv[1] * cos( argv[2] * acos( -1 ) / 180 ) );
-			mol[i].SetCrd( 1, argv[1] * sin( argv[2] * acos( -1 ) / 180 ) );
+			mol[i].SetCrd( 0, argv[1] * cos( argv[2] ) );
+			mol[i].SetCrd( 1, argv[1] * sin( argv[2] ) );
 		} else if( i > 2 ) {
-			mol[i].SetCrd( 0, argv[3 * i - 6] * cos( argv[3 * i - 5] * acos( -1 ) / 180 ) );
-			mol[i].SetCrd( 1, argv[3 * i - 6] * sin( argv[3 * i - 5] * acos( -1 ) / 180 ) * cos( argv[3 * i - 4] * acos( -1 ) / 180 ) );
-			mol[i].SetCrd( 2, argv[3 * i - 6] * sin( argv[3 * i - 5] * acos( -1 ) / 180 ) * sin( argv[3 * i - 4] * acos( -1 ) / 180 ) );
+			mol[i].SetCrd( 0, argv[3 * i - 6] * cos( argv[3 * i - 5] ));
+			mol[i].SetCrd( 1, argv[3 * i - 6] * sin( argv[3 * i - 5] ) * cos( argv[3 * i - 4]));
+			mol[i].SetCrd( 2, argv[3 * i - 6] * sin( argv[3 * i - 5] ) * sin( argv[3 * i - 4]));
 		}
 	}
 }
@@ -314,6 +314,39 @@ vector<int> MakeFragment(vector<Atom> mol) {
 	fprintf( stdout, "\n" );
 
 	return frg;
+}
+
+
+vector<int> MakeFragment(vector<Atom> mol, int type=0) {
+  int natom = (int)mol.size();
+  vector<int> root(natom);
+  vector< vector<int> > dmat(natom,vector<int>(natom,-1));
+
+  for(int i=0;i<natom;i++) {
+    for(int j=i+1;j<natom;j++) {
+      if(BondJudge(mol[i], mol[j]) == 1) {
+        dmat[i][j] = 1;
+        dmat[j][i] = 1;
+      }
+    }
+  }
+
+  for(int i=0;i<natom;i++) { root[i] = i; }
+
+  for(int i=0;i<natom;i++) {
+    for(int j=i+1;j<natom;j++) {
+      if(dmat[i][j] != 1) { continue; } // skip no bond
+
+      for(int k=0;k<natom;k++) {
+        if(k==j) { continue; } // same atom
+        if(root[k] == root[j]) { root[k] = root[i]; }
+      }
+      root[ root[j] ] = root[i];
+      root[j] = root[i];
+    }
+  }
+
+  return root;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
