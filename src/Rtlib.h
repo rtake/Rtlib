@@ -317,7 +317,7 @@ vector<int> MakeFragment(vector<Atom> mol) {
 }
 
 
-vector<int> MakeFragment(vector<Atom> mol, int type=0) {
+vector<int> MakeFragment(vector<Atom> mol, int type) {
   int natom = (int)mol.size();
   vector<int> root(natom);
   vector< vector<int> > dmat(natom,vector<int>(natom,-1));
