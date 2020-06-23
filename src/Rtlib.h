@@ -261,70 +261,65 @@ void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> ve
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-int BondJudge(Atom a0, Atom a1) {
-	double threshold = 1.5;
+int BondJudge(Atom a0, Atom a1, double threshold = 1.5) {
 	if( Dist(a0, a1) < ( a0.radii() + a1.radii() ) * threshold ) return 1;
 	else return -1;
 }
 
+/*
+vector<int> MakeFragment(vector<Atom> mol, double threshold = 1.5) {
+  int i ,j, k;
+  const int natom = (int)mol.size();
+  vector<int> frg, fvec(natom, 0), f(natom), root(natom); // root
+  vector< vector<int> > mat(natom, vector<int>(natom, -1) );
 
-vector<int> MakeFragment(vector<Atom> mol) {
-	int i ,j, k;
-	const int natom = (int)mol.size();
-	vector<int> frg, fvec(natom, 0), f(natom), root(natom); // root
-	vector< vector<int> > mat(natom, vector<int>(natom, -1) );
+  // 1. Make distance matrix
 
-	// 1. Make distance matrix
-
-	for(i = 0;i < natom;i++) {
-		for(j = i + 1;j < natom;j++) {
-			if( BondJudge(mol[i], mol[j]) == 1 ) {
-				mat[i][j] = 1;
-				mat[j][i] = 1;
-				// fprintf( stdout, "%d and %d is connect\n", i ,j );
-			}
-		}
-	}
+  for(i = 0;i < natom;i++) {
+    for(j = i + 1;j < natom;j++) {
+      if( BondJudge(mol[i], mol[j], threshold) == 1 ) {
+        mat[i][j] = 1;
+        mat[j][i] = 1;
+      }
+    }
+  }
 	
-	for(i = 0;i < natom;i++) { f[i] = i; root[i] = i; }
+  for(i = 0;i < natom;i++) { f[i] = i; root[i] = i; }
 
-	for(i = 0;i < natom;i++) {
-		for(j = i + 1;j < natom;j++) {
-			if( mat[i][j] == 1 ) {
-				for(k = 0;k < natom;k++) {
-					if( k == j ) continue;
-					if( root[k] == root[j] ) {
-						root[k] = root[i];
-					}
-				}
-				root[ root[j] ] = root[i];
-				root[j] = root[i];
-			}
-		}
-	}
+  for(i = 0;i < natom;i++) {
+    for(j = i + 1;j < natom;j++) {
+      if( mat[i][j] == 1 ) {
+        for(k = 0;k < natom;k++) {
+          if( k == j ) continue;
+          if( root[k] == root[j] ) { root[k] = root[i]; }
+        }
+        root[ root[j] ] = root[i];
+        root[j] = root[i];
+      }
+    }
+  }
 
+  // 2. Calc. Mass of each fragments
 
-	// 2. Calc. Mass of each fragments
+  for(i = 0;i < natom;i++) { fvec[ root[i] ] += mol[i].mass(); }
+  for(i = 0;i < natom;i++) { if( fvec[i] > 0 ) frg.push_back( fvec[i] ); }
+  sort( frg.begin(), frg.end(), greater<int>() );
 
-	for(i = 0;i < natom;i++) { fvec[ root[i] ] += mol[i].mass(); }
-	for(i = 0;i < natom;i++) { if( fvec[i] > 0 ) frg.push_back( fvec[i] ); }
-	sort( frg.begin(), frg.end(), greater<int>() );
+  for(i = 0;i < natom;i++) { fprintf( stdout, "root[%d] : %d\t", i, root[i] ); }
+  fprintf( stdout, "\n" );
 
-	for(i = 0;i < natom;i++) { fprintf( stdout, "root[%d] : %d\t", i, root[i] ); }
-	fprintf( stdout, "\n" );
-
-	return frg;
+  return frg;
 }
+*/
 
-
-vector<int> MakeFragment(vector<Atom> mol, int type) {
+vector<int> MakeFragment(vector<Atom> mol, double threshold = 1.5, int type=0) {
   int natom = (int)mol.size();
-  vector<int> root(natom);
+  vector<int> root(natom), frg, fvec(natom, 0), f(natom);
   vector< vector<int> > dmat(natom,vector<int>(natom,-1));
 
   for(int i=0;i<natom;i++) {
     for(int j=i+1;j<natom;j++) {
-      if(BondJudge(mol[i], mol[j]) == 1) {
+      if(BondJudge(mol[i], mol[j], threshold) == 1) {
         dmat[i][j] = 1;
         dmat[j][i] = 1;
       }
@@ -346,7 +341,17 @@ vector<int> MakeFragment(vector<Atom> mol, int type) {
     }
   }
 
-  return root;
+  if(type==0) { return root; }
+
+
+  for(int i=0;i<natom;i++) { fvec[ root[i] ] += mol[i].mass(); }
+  for(int i=0;i<natom;i++) { if( fvec[i] > 0 ) frg.push_back( fvec[i] ); }
+  sort( frg.begin(), frg.end(), greater<int>() );
+
+  for(int i=0;i<natom;i++) { fprintf( stdout, "root[%d] : %d\t", i, root[i] ); }
+  fprintf( stdout, "\n" );
+
+  return frg;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////

@@ -36,7 +36,7 @@ void ConvertXYZtoFRG(int argc, char* argv[]) {
 			m[i] = a;
 		}
 
-		fvec = MakeFragment(m);
+		fvec = MakeFragment(m, 1.2, 1); // threshold = 1.2
 		fmat.push_back(fvec);
 		mols.push_back(m);
 	}
